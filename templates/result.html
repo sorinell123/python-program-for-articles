@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated Article</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .page-title {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            font-weight: 600;
+        }
+        .article-content {
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.8;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .buttons-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #34495e;
+        }
+        .copy-button {
+            background-color: #27ae60;
+        }
+        .copy-button:hover {
+            background-color: #2ecc71;
+        }
+        /* Article Content Styling */
+        .article-content h1, 
+        .article-content h2, 
+        .article-content h3 {
+            color: #2c3e50;
+            line-height: 1.3;
+            margin: 1.5em 0 0.8em;
+            font-weight: 600;
+        }
+        .article-content h1 { font-size: 2em; }
+        .article-content h2 { font-size: 1.75em; }
+        .article-content h3 { font-size: 1.5em; }
+        
+        .article-content p {
+            margin: 0 0 1.5em;
+            text-align: justify;
+        }
+        .article-content ul, 
+        .article-content ol {
+            margin: 0 0 1.5em;
+            padding-left: 2em;
+        }
+        .article-content li {
+            margin-bottom: 0.5em;
+        }
+        .article-content blockquote {
+            border-left: 4px solid #3498db;
+            margin: 1.5em 0;
+            padding: 1em 2em;
+            background-color: #f8f9fa;
+            color: #34495e;
+            font-style: italic;
+        }
+        .article-content code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            color: #e74c3c;
+        }
+        .article-content pre {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #eee;
+        }
+        .article-section {
+            margin: 2em 0;
+            padding-bottom: 2em;
+            border-bottom: 1px solid #eee;
+        }
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .buttons-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="page-title">Generated Article</h1>
+        <div class="article-content">
+            {{ article | safe }}
+        </div>
+        <div class="buttons-container">
+            <button onclick="copyArticle()" class="button copy-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                Copy Article
+            </button>
+            <a href="/" class="button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 12L9 6M3 12l6 6"></path>
+                </svg>
+                Generate Another
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function copyArticle() {
+            const articleContent = document.querySelector('.article-content').innerText;
+            navigator.clipboard.writeText(articleContent).then(() => {
+                const copyButton = document.querySelector('.copy-button');
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 6L9 17l-5-5"></path>
+                    </svg>
+                    Copied!
+                `;
+                setTimeout(() => {
+                    copyButton.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy article to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>

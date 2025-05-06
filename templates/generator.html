@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/generator.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back to Home
+            </a>
+            <h1>Prompt Generator</h1>
+        </div>
+
+        <!-- Template Management Section -->
+        <div class="template-section">
+            <h2 class="section-title">Templates</h2>
+            <div class="template-controls">
+                <select id="templateSelect">
+                    <option value="">Select a template...</option>
+                </select>
+                <button type="button" id="loadTemplate">Load Template</button>
+                <input type="text" id="templateName" placeholder="Template name">
+                <button type="button" id="saveTemplate">Save Template</button>
+            </div>
+        </div>
+
+        <!-- Text Replacement Section -->
+        <div class="replacements-section">
+            <h2 class="section-title">Text Replacements</h2>
+            <div id="replacements-container"></div>
+            <button type="button" id="addReplacement">Add Replacement</button>
+        </div>
+
+        <form id="articleForm">
+            <div class="form-group">
+                <label for="language">Select Language:</label>
+                <select id="language" name="language">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="nl">Dutch</option>
+                    <option value="ro">Romanian</option>
+                </select>
+            </div>
+            
+            <div id="fields-container">
+                <div class="field-container">
+                    <label>Field 1:</label>
+                    <input type="text" name="field[]" placeholder="Enter main topic" required>
+                    <textarea name="description[]" placeholder="Enter detailed description" rows="3"></textarea>
+                    <div class="field-settings">
+                        <div class="setting-group">
+                            <label>Character Count:</label>
+                            <input type="number" name="wordCount[]" value="2000" required>
+                        </div>
+                        <div class="setting-group">
+                            <label>Keyword:</label>
+                            <input type="text" name="keyword[]" placeholder="Enter keyword">
+                            <label>Frequency:</label>
+                            <input type="number" name="frequency[]" min="1" max="20" value="3">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="addField">Add Field</button>
+            <button type="button" id="showPrompt">Preview Prompt</button>
+        </form>
+
+        <!-- Prompt Preview Modal -->
+        <div id="promptModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Prompt Preview</h2>
+                <div class="prompt-section">
+                    <h3>System Prompt</h3>
+                    <button type="button" class="copy-button" onclick="copyText('systemPrompt')">Copy</button>
+                    <pre id="systemPrompt"></pre>
+                </div>
+                <div class="prompt-section">
+                    <h3>User Prompt</h3>
+                    <button type="button" class="copy-button" onclick="copyText('userPrompt')">Copy</button>
+                    <pre id="userPrompt"></pre>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="generate-button" id="generateArticle">Generate Article</button>
+                    <button type="button" class="download-button" id="downloadPrompt">Download Prompt</button>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress" id="progressBar"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fieldCount = 1;
+        let replacements = new Map();
+
+        // Template list loading
+        async function loadTemplateList() {
+            try {
+                const response = await fetch('/get-templates');
+                const templates = await response.json();
+                const select = document.getElementById('templateSelect');
+                select.innerHTML = '<option value="">Select a template...</option>';
+                Object.keys(templates).forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        }
+        loadTemplateList();
+
+        // Save template functionality
+        document.getElementById('saveTemplate').addEventListener('click', async () => {
+            const templateName = document.getElementById('templateName').value.trim();
+            if (!templateName) {
+                alert('Please enter a template name');
+                return;
+            }
+
+            const fields = Array.from(document.querySelectorAll('.field-container')).map(container => ({
+                topic: container.querySelector('input[name="field[]"]').value,
+                description: container.querySelector('textarea[name="description[]"]').value,
+                wordCount: parseInt(container.querySelector('input[name="wordCount[]"]').value),
+                keyword: container.querySelector('input[name="keyword[]"]').value,
+                frequency: parseInt(container.querySelector('input[name="frequency[]"]').value)
+            }));
+
+            const replacementsArray = Array.from(document.querySelectorAll('.replacement-pair')).map(pair => ({
+                key: pair.querySelector('.replacement-key').value,
+                value: pair.querySelector('.replacement-value').value
+            }));
+
+            try {
+                const response = await fetch('/save-template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: templateName,
+                        fields: fields,
+                        language: document.getElementById('language').value,
+                        replacements: replacementsArray
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Template saved successfully!');
+                    loadTemplateList();
+                    document.getElementById('templateName').value = '';
+                } else {
+                    throw new Error(result.error || 'Failed to save template');
+                }
+            } catch (error) {
+                alert('Error saving template: ' + error.message);
+            }
+        });
+
+        // Load template functionality
+        document.getElementById('loadTemplate').addEventListener('click', async () => {
+            const templateName = document.getElementById('templateSelect').value;
+            if (!templateName) {
+                alert('Please select a template');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/load-template/${encodeURIComponent(templateName)}`);
+                const template = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(template.error || 'Failed to load template');
+                }
+
+                document.getElementById('language').value = template.language;
+                const fieldsContainer = document.getElementById('fields-container');
+                fieldsContainer.innerHTML = '';
+                fieldCount = 0;
+
+                template.fields.forEach((field, index) => {
+                    fieldCount++;
+                    const container = document.createElement('div');
+                    container.className = 'field-container';
+                    container.innerHTML = `
+                        ${index > 0 ? '<span class="remove-field" onclick="removeField(this)">×</span>' : ''}
+                        <label>Field ${index + 1}:</label>
+                        <input type="text" name="field[]" placeholder="Enter main topic" required value="${field.topic || ''}">
+                        <textarea name="description[]" placeholder="Enter detailed description" rows="3">${field.description || ''}</textarea>
+                        <div class="field-settings">
+                            <div class="setting-group">
+                                <label>Character Count:</label>
+                                <input type="number" name="wordCount[]" value="${field.wordCount || 2000}" required>
+                            </div>
+                            <div class="setting-group">
+                                <label>Keyword:</label>
+                                <input type="text" name="keyword[]" placeholder="Enter keyword" value="${field.keyword || ''}">
+                                <label>Frequency:</label>
+                                <input type="number" name="frequency[]" min="1" max="20" value="${field.frequency || 3}">
+                            </div>
+                        </div>
+                    `;
+                    fieldsContainer.appendChild(container);
+                });
+
+                document.getElementById('replacements-container').innerHTML = '';
+                replacements.clear();
+
+                if (template.replacements) {
+                    template.replacements.forEach(rep => {
+                        if (rep.key && rep.value) {
+                            const container = document.createElement('div');
+                            container.className = 'replacement-pair';
+                            container.innerHTML = `
+                                <input type="text" class="replacement-key" placeholder="Placeholder (e.g., [fruits])" 
+                                    value="${rep.key}" oninput="validatePlaceholder(this)">
+                                <input type="text" class="replacement-value" placeholder="Value (e.g., apples)"
+                                    value="${rep.value}">
+                                <span class="remove-replacement" onclick="removeReplacement(this)">×</span>
+                            `;
+                            document.getElementById('replacements-container').appendChild(container);
+                            replacements.set(rep.key, rep.value);
+                        }
+                    });
+                }
+
+                alert('Template loaded successfully!');
+            } catch (error) {
+                alert('Error loading template: ' + error.message);
+            }
+        });
+
+        // Replacements functionality
+        document.getElementById('addReplacement').addEventListener('click', () => {
+            const container = document.createElement('div');
+            container.className = 'replacement-pair';
+            container.innerHTML = `
+                <input type="text" class="replacement-key" placeholder="Placeholder (e.g., [fruits])" 
+                    oninput="validatePlaceholder(this)">
+                <input type="text" class="replacement-value" placeholder="Value (e.g., apples)">
+                <span class="remove-replacement" onclick="removeReplacement(this)">×</span>
+            `;
+            document.getElementById('replacements-container').appendChild(container);
+            updateReplacements();
+        });
+
+        function validatePlaceholder(input) {
+            let value = input.value;
+            if (!value.startsWith('[')) value = '[' + value;
+            if (!value.endsWith(']') && value.length > 1) value = value + ']';
+            input.value = value;
+        }
+
+        function removeReplacement(element) {
+            element.parentElement.remove();
+            updateReplacements();
+        }
+
+        function updateReplacements() {
+            replacements.clear();
+            document.querySelectorAll('.replacement-pair').forEach(pair => {
+                const key = pair.querySelector('.replacement-key').value;
+                const value = pair.querySelector('.replacement-value').value;
+                if (key && value) {
+                    replacements.set(key, value);
+                }
+            });
+        }
+
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text)
+                .then(() => alert('Copied to clipboard!'))
+                .catch(err => console.error('Failed to copy: ', err));
+        }
+
+        function removeField(element) {
+            element.parentElement.remove();
+        }
+
+        function updateProgress(percent, hideOnComplete = true) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressContainer = document.getElementById('progressContainer');
+            
+            progressBar.style.width = percent + '%';
+            progressText.textContent = percent + '%';
+            progressContainer.style.display = 'block';
+            
+            if (percent === 100 && hideOnComplete) {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // Add new field functionality
+        document.getElementById('addField').addEventListener('click', () => {
+            fieldCount++;
+            const container = document.createElement('div');
+            container.className = 'field-container';
+            container.innerHTML = `
+                <span class="remove-field" onclick="removeField(this)">×</span>
+                <label>Field ${fieldCount}:</label>
+                <input type="text" name="field[]" placeholder="Enter main topic" required>
+                <textarea name="description[]" placeholder="Enter detailed description" rows="3"></textarea>
+                <div class="field-settings">
+                    <div class="setting-group">
+                        <label>Character Count:</label>
+                        <input type="number" name="wordCount[]" value="2000" required>
+                    </div>
+                    <div class="setting-group">
+                        <label>Keyword:</label>
+                        <input type="text" name="keyword[]" placeholder="Enter keyword">
+                        <label>Frequency:</label>
+                        <input type="number" name="frequency[]" min="1" max="20" value="3">
+                    </div>
+                </div>
+            `;
+            document.getElementById('fields-container').appendChild(container);
+        });
+
+        // Modal functionality
+        const modal = document.getElementById('promptModal');
+        const closeBtn = document.querySelector('.close');
+        const showPromptBtn = document.getElementById('showPrompt');
+        const downloadPromptBtn = document.getElementById('downloadPrompt');
+        const generateArticleBtn = document.getElementById('generateArticle');
+
+        showPromptBtn.addEventListener('click', async () => {
+            try {
+                const fields = Array.from(document.querySelectorAll('.field-container')).map(container => ({
+                    topic: container.querySelector('input[name="field[]"]').value,
+                    description: container.querySelector('textarea[name="description[]"]').value,
+                    wordCount: parseInt(container.querySelector('input[name="wordCount[]"]').value),
+                    keyword: container.querySelector('input[name="keyword[]"]').value,
+                    frequency: parseInt(container.querySelector('input[name="frequency[]"]').value)
+                }));
+
+                const replacementsArray = Array.from(document.querySelectorAll('.replacement-pair')).map(pair => ({
+                    key: pair.querySelector('.replacement-key').value,
+                    value: pair.querySelector('.replacement-value').value
+                })).filter(rep => rep.key && rep.value);
+
+                const response = await fetch('/preview-prompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fields: fields,
+                        language: document.getElementById('language').value,
+                        replacements: replacementsArray
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('systemPrompt').textContent = data.system_prompt;
+                    document.getElementById('userPrompt').textContent = data.user_prompt;
+                    modal.style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Failed to preview prompt');
+                }
+            } catch (error) {
+                alert('Error previewing prompt: ' + error.message);
+            }
+        });
+
+        generateArticleBtn.addEventListener('click', async () => {
+            try {
+                const userPrompt = document.getElementById('userPrompt').textContent;
+                const generateButton = document.getElementById('generateArticle');
+                generateButton.disabled = true;
+                
+                updateProgress(25);
+                
+                const response = await fetch('/generate-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: userPrompt
+                    })
+                });
+                
+                updateProgress(75);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate article');
+                }
+                
+                updateProgress(100);
+                
+                // Replace entire page content with the response
+                const html = await response.text();
+                document.documentElement.innerHTML = html;
+                
+            } catch (error) {
+                alert('Error generating article: ' + error.message);
+                generateButton.disabled = false;
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+        });
+
+        downloadPromptBtn.addEventListener('click', async () => {
+            try {
+                const fields = Array.from(document.querySelectorAll('.field-container')).map(container => ({
+                    topic: container.querySelector('input[name="field[]"]').value,
+                    description: container.querySelector('textarea[name="description[]"]').value,
+                    wordCount: parseInt(container.querySelector('input[name="wordCount[]"]').value),
+                    keyword: container.querySelector('input[name="keyword[]"]').value,
+                    frequency: parseInt(container.querySelector('input[name="frequency[]"]').value)
+                }));
+
+                const replacementsArray = Array.from(document.querySelectorAll('.replacement-pair')).map(pair => ({
+                    key: pair.querySelector('.replacement-key').value,
+                    value: pair.querySelector('.replacement-value').value
+                })).filter(rep => rep.key && rep.value);
+
+                const response = await fetch('/download-prompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fields: fields,
+                        language: document.getElementById('language').value,
+                        replacements: replacementsArray
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    const contentDisposition = response.headers.get('content-disposition');
+                    const filename = contentDisposition ? contentDisposition.split('filename=')[1] : 'prompt.txt';
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to download prompt');
+                }
+            } catch (error) {
+                alert('Error downloading prompt: ' + error.message);
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

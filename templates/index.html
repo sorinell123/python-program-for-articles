@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Generation System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Article Generation System</h1>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="options-container">
+            <a href="/generator" class="option-card">
+                <div class="icon">📝</div>
+                <h2 class="option-title">Create Prompt</h2>
+                <p class="option-description">
+                    Create and customize article prompts with our template system.
+                    Save templates for future use or generate articles directly.
+                </p>
+                <span class="card-button">Create Prompt</span>
+            </a>
+
+            <form action="/generate-article" method="post" enctype="multipart/form-data" class="option-card">
+                <div class="icon">📄</div>
+                <h2 class="option-title">Upload Prompt</h2>
+                <p class="option-description">
+                    Upload a text file containing your prompt to generate an article.
+                    Supports .txt files with structured prompts.
+                </p>
+                <input type="file" name="file" accept=".txt" id="fileInput" class="hidden-input">
+                <label for="fileInput" class="card-button">Choose File</label>
+                <div id="fileName" class="file-name"></div>
+                <button type="submit" class="card-button submit-button" id="submitButton">
+                    Generate Article
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name;
+            if (fileName) {
+                document.getElementById('fileName').textContent = `Selected: ${fileName}`;
+                document.getElementById('submitButton').style.display = 'inline-block';
+            } else {
+                document.getElementById('fileName').textContent = '';
+                document.getElementById('submitButton').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
